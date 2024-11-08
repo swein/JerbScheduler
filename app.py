@@ -1,6 +1,8 @@
 from flask import Flask, render_template, jsonify, request
 import yaml
 import subprocess
+import os
+import socket
 import threading
 from datetime import datetime
 import schedule
@@ -38,14 +40,23 @@ class JobScheduler:
         
         job = self.jobs[job_name]
         self.job_status[job_name]['status'] = 'running'
+        self.job_status[job_name]['output'] = ''
         
         try:
-            result = subprocess.run(job['command'], shell=True, check=True)
+            result = subprocess.run(
+                job['command'], 
+                shell=True, 
+                check=True,
+                capture_output=True,
+                text=True
+            )
             self.job_status[job_name]['status'] = 'success'
             self.job_status[job_name]['last_status'] = 'success'
-        except subprocess.CalledProcessError:
+            self.job_status[job_name]['output'] = result.stdout
+        except subprocess.CalledProcessError as e:
             self.job_status[job_name]['status'] = 'failed'
             self.job_status[job_name]['last_status'] = 'failed'
+            self.job_status[job_name]['output'] = f"Error:\n{e.stderr}\nOutput:\n{e.stdout}"
         
         self.job_status[job_name]['last_run'] = datetime.now()
         return True
@@ -54,7 +65,13 @@ scheduler = JobScheduler()
 
 @app.route('/')
 def index():
-    return render_template('index.html', jobs=scheduler.jobs, status=scheduler.job_status)
+    hostname = socket.gethostname()
+    username = os.getenv('USER', os.getenv('USERNAME', 'unknown'))
+    return render_template('index.html', 
+                         jobs=scheduler.jobs, 
+                         status=scheduler.job_status,
+                         hostname=hostname,
+                         username=username)
 
 @app.route('/api/job/<job_name>/run', methods=['POST'])
 def run_job(job_name):

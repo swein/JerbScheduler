@@ -3,17 +3,51 @@
 <head>
     <title>Job Scheduler</title>
     <style>
-        .job-box {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin: 10px;
-            display: inline-block;
-            min-width: 200px;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
         }
-        .status-pending { background-color: #f0f0f0; }
-        .status-running { background-color: #fff3cd; }
-        .status-success { background-color: #d4edda; }
-        .status-failed { background-color: #f8d7da; }
+        .job-box {
+            border-radius: 8px;
+            padding: 15px;
+            margin: 12px;
+            display: inline-block;
+            min-width: 250px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .job-box:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .status-pending { 
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border: 1px solid #e0e0e0;
+        }
+        .status-running { 
+            background: linear-gradient(145deg, #fff9e6, #fff3cd);
+            border: 1px solid #ffeeba;
+        }
+        .status-success { 
+            background: linear-gradient(145deg, #e8f5e9, #d4edda);
+            border: 1px solid #c3e6cb;
+        }
+        .status-failed { 
+            background: linear-gradient(145deg, #fff5f5, #f8d7da);
+            border: 1px solid #f5c6cb;
+        }
+        .terminal-pane {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
         .dropdown-content {
             display: none;
             position: absolute;
@@ -34,7 +68,7 @@
     </style>
 </head>
 <body>
-    <h1>Job Scheduler</h1>
+    <h1>{{ hostname }} - {{ username }} Job Scheduler</h1>
     <div id="jobs-container">
         {% for job_name, job in jobs.items() %}
         <div class="job-box status-{{ status[job_name]['status'] }}" id="job-{{ job_name }}">
@@ -49,6 +83,10 @@
             </div>
         </div>
         {% endfor %}
+    </div>
+
+    <div class="terminal-pane" id="terminal">
+        No job output to display
     </div>
 
     <script>
@@ -76,6 +114,13 @@
                 const jobBox = document.getElementById(`job-${jobName}`);
                 jobBox.className = `job-box status-${data.status}`;
                 jobBox.querySelector('.job-status').textContent = data.status;
+                
+                // Update terminal if there's output
+                if (data.output) {
+                    const terminal = document.getElementById('terminal');
+                    terminal.textContent = `Job ${jobName} output:\n${data.output}`;
+                    terminal.scrollTop = terminal.scrollHeight;
+                }
             });
         }
 
