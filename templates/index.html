@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Job Scheduler</title>
+    <style>
+        .job-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px;
+            display: inline-block;
+            min-width: 200px;
+        }
+        .status-pending { background-color: #f0f0f0; }
+        .status-running { background-color: #fff3cd; }
+        .status-success { background-color: #d4edda; }
+        .status-failed { background-color: #f8d7da; }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Job Scheduler</h1>
+    <div id="jobs-container">
+        {% for job_name, job in jobs.items() %}
+        <div class="job-box status-{{ status[job_name]['status'] }}" id="job-{{ job_name }}">
+            <h3>{{ job_name }}</h3>
+            <p>Status: <span class="job-status">{{ status[job_name]['status'] }}</span></p>
+            <p>Last Run: {{ status[job_name]['last_run'] or 'Never' }}</p>
+            <p>Dependencies: {{ ', '.join(job['dependencies']) or 'None' }}</p>
+            <button onclick="showJobMenu('{{ job_name }}')">Actions</button>
+            <div id="dropdown-{{ job_name }}" class="dropdown-content">
+                <a href="#" onclick="runJob('{{ job_name }}')">Run Now</a>
+                <a href="#" onclick="markJobFailed('{{ job_name }}')">Mark as Failed</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        function showJobMenu(jobName) {
+            var dropdown = document.getElementById(`dropdown-${jobName}`);
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function runJob(jobName) {
+            fetch(`/api/job/${jobName}/run`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateJobStatus(jobName);
+                }
+            });
+        }
+
+        function updateJobStatus(jobName) {
+            fetch(`/api/job/${jobName}/status`)
+            .then(response => response.json())
+            .then(data => {
+                const jobBox = document.getElementById(`job-${jobName}`);
+                jobBox.className = `job-box status-${data.status}`;
+                jobBox.querySelector('.job-status').textContent = data.status;
+            });
+        }
+
+        // Poll for status updates every 5 seconds
+        setInterval(() => {
+            document.querySelectorAll('.job-box').forEach(box => {
+                const jobName = box.id.replace('job-', '');
+                updateJobStatus(jobName);
+            });
+        }, 5000);
+    </script>
+</body>
+</html>
