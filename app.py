@@ -1,6 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 import yaml
 import subprocess
+import json
 import os
 import socket
 import threading
@@ -15,6 +16,7 @@ class JobScheduler:
         self.jobs = {}
         self.job_status = {}
         self.load_jobs()
+        self.load_status_from_log()
     
     def load_jobs(self):
         with open('jobs.yaml', 'r') as file:
@@ -34,6 +36,18 @@ class JobScheduler:
                 return False
         return True
     
+    def save_status_to_log(self):
+        with open('/tmp/jerb_scheduler.log', 'w') as f:
+            json.dump(self.job_status, f, default=str)
+
+    def load_status_from_log(self):
+        try:
+            with open('/tmp/jerb_scheduler.log', 'r') as f:
+                saved_status = json.load(f)
+                self.job_status.update(saved_status)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+
     def run_job(self, job_name):
         if not self.can_run_job(job_name):
             return False
@@ -41,6 +55,7 @@ class JobScheduler:
         job = self.jobs[job_name]
         self.job_status[job_name]['status'] = 'running'
         self.job_status[job_name]['output'] = ''
+        self.save_status_to_log()
         
         try:
             result = subprocess.run(
@@ -52,13 +67,14 @@ class JobScheduler:
             )
             self.job_status[job_name]['status'] = 'success'
             self.job_status[job_name]['last_status'] = 'success'
-            self.job_status[job_name]['output'] = result.stdout
+            self.job_status[job_name]['output'] = f"Command: {job['command']}\nOutput:\n{result.stdout}"
         except subprocess.CalledProcessError as e:
             self.job_status[job_name]['status'] = 'failed'
             self.job_status[job_name]['last_status'] = 'failed'
-            self.job_status[job_name]['output'] = f"Error:\n{e.stderr}\nOutput:\n{e.stdout}"
+            self.job_status[job_name]['output'] = f"Command: {job['command']}\nError:\n{e.stderr}\nOutput:\n{e.stdout}"
         
         self.job_status[job_name]['last_run'] = datetime.now()
+        self.save_status_to_log()
         return True
 
 scheduler = JobScheduler()

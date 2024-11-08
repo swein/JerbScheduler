@@ -118,8 +118,13 @@
                 // Update terminal if there's output
                 if (data.output) {
                     const terminal = document.getElementById('terminal');
-                    terminal.textContent = `Job ${jobName} output:\n${data.output}`;
+                    terminal.textContent = `Job ${jobName} (${data.status}):\n${data.output}`;
                     terminal.scrollTop = terminal.scrollHeight;
+                }
+
+                // If job is running, poll more frequently
+                if (data.status === 'running') {
+                    setTimeout(() => updateJobStatus(jobName), 1000);
                 }
             });
         }
