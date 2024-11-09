@@ -129,12 +129,23 @@
             });
         }
 
-        // Poll for status updates every 5 seconds
+        function updateTerminal() {
+            fetch('/api/logs')
+                .then(response => response.json())
+                .then(data => {
+                    const terminal = document.getElementById('terminal');
+                    terminal.textContent = data.logs;
+                    terminal.scrollTop = terminal.scrollHeight;
+                });
+        }
+
+        // Poll for status updates and logs every 5 seconds
         setInterval(() => {
             document.querySelectorAll('.job-box').forEach(box => {
                 const jobName = box.id.replace('job-', '');
                 updateJobStatus(jobName);
             });
+            updateTerminal();
         }, 5000);
     </script>
 </body>

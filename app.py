@@ -36,26 +36,37 @@ class JobScheduler:
                 return False
         return True
     
+    def log_message(self, message):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open('/tmp/jerb_scheduler.log', 'a') as f:
+            f.write(f"[{timestamp}] {message}\n")
+
     def save_status_to_log(self):
-        with open('/tmp/jerb_scheduler.log', 'w') as f:
+        self.log_message("Saving job status")
+        with open('/tmp/jerb_scheduler_status.json', 'w') as f:
             json.dump(self.job_status, f, default=str)
 
     def load_status_from_log(self):
         try:
-            with open('/tmp/jerb_scheduler.log', 'r') as f:
+            with open('/tmp/jerb_scheduler_status.json', 'r') as f:
                 saved_status = json.load(f)
                 self.job_status.update(saved_status)
+                self.log_message("Loaded previous job status")
         except (FileNotFoundError, json.JSONDecodeError):
-            pass
+            self.log_message("No previous status found or invalid status file")
 
     def run_job(self, job_name):
         if not self.can_run_job(job_name):
+            self.log_message(f"Job {job_name} cannot run - dependencies failed")
             return False
         
         job = self.jobs[job_name]
         self.job_status[job_name]['status'] = 'running'
         self.job_status[job_name]['output'] = ''
         self.save_status_to_log()
+        
+        self.log_message(f"Starting job: {job_name}")
+        self.log_message(f"Executing command: {job['command']}")
         
         try:
             result = subprocess.run(
@@ -67,11 +78,15 @@ class JobScheduler:
             )
             self.job_status[job_name]['status'] = 'success'
             self.job_status[job_name]['last_status'] = 'success'
-            self.job_status[job_name]['output'] = f"Command: {job['command']}\nOutput:\n{result.stdout}"
+            output_msg = f"=== Job: {job_name} ===\nCommand: {job['command']}\nStatus: Success\nOutput:\n{result.stdout}"
+            self.job_status[job_name]['output'] = output_msg
+            self.log_message(output_msg)
         except subprocess.CalledProcessError as e:
             self.job_status[job_name]['status'] = 'failed'
             self.job_status[job_name]['last_status'] = 'failed'
-            self.job_status[job_name]['output'] = f"Command: {job['command']}\nError:\n{e.stderr}\nOutput:\n{e.stdout}"
+            error_msg = f"=== Job: {job_name} ===\nCommand: {job['command']}\nStatus: Failed\nError:\n{e.stderr}\nOutput:\n{e.stdout}"
+            self.job_status[job_name]['output'] = error_msg
+            self.log_message(error_msg)
         
         self.job_status[job_name]['last_run'] = datetime.now()
         self.save_status_to_log()
@@ -101,6 +116,15 @@ def job_status(job_name):
     if job_name in scheduler.job_status:
         return jsonify(scheduler.job_status[job_name])
     return jsonify({'error': 'Job not found'})
+
+@app.route('/api/logs', methods=['GET'])
+def get_logs():
+    try:
+        with open('/tmp/jerb_scheduler.log', 'r') as f:
+            logs = f.read()
+        return jsonify({'logs': logs})
+    except FileNotFoundError:
+        return jsonify({'logs': 'No logs available'})
 
 if __name__ == '__main__':
     app.run(debug=True)
