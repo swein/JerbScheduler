@@ -69,6 +69,7 @@ class JobScheduler:
         self.log_message(f"Executing command: {job['command']}")
         
         try:
+            self.log_message(f"Running command for {job_name}...")
             result = subprocess.run(
                 job['command'], 
                 shell=True,
@@ -76,14 +77,25 @@ class JobScheduler:
                 text=True
             )
             exit_code = result.returncode
+            
+            # Always log the complete output regardless of success/failure
+            output_msg = (
+                f"=== Job: {job_name} ===\n"
+                f"Command: {job['command']}\n"
+                f"Exit Code: {exit_code}\n"
+                f"Status: {'Success' if exit_code == 0 else 'Failed'}\n"
+                f"Output:\n{result.stdout}\n"
+                f"Errors:\n{result.stderr}"
+            )
+            self.log_message(output_msg)
+            
             if exit_code == 0:
                 self.job_status[job_name]['status'] = 'success'
                 self.job_status[job_name]['last_status'] = 'success'
-                output_msg = f"=== Job: {job_name} ===\nCommand: {job['command']}\nExit Code: {exit_code}\nStatus: Success\nOutput:\n{result.stdout}"
             else:
                 raise subprocess.CalledProcessError(exit_code, job['command'], result.stdout, result.stderr)
+            
             self.job_status[job_name]['output'] = output_msg
-            self.log_message(output_msg)
         except subprocess.CalledProcessError as e:
             self.job_status[job_name]['status'] = 'failed'
             self.job_status[job_name]['last_status'] = 'failed'
