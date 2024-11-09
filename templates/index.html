@@ -90,12 +90,29 @@
     </div>
 
     <script>
+        // Close all dropdowns
+        function closeAllDropdowns() {
+            document.querySelectorAll('.dropdown-content').forEach(dropdown => {
+                dropdown.style.display = 'none';
+            });
+        }
+
+        // Handle clicks outside dropdowns
+        document.addEventListener('click', function(event) {
+            if (!event.target.matches('button')) {
+                closeAllDropdowns();
+            }
+        });
+
         function showJobMenu(jobName) {
+            event.stopPropagation();
+            closeAllDropdowns();
             var dropdown = document.getElementById(`dropdown-${jobName}`);
-            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+            dropdown.style.display = 'block';
         }
 
         function runJob(jobName) {
+            closeAllDropdowns();
             fetch(`/api/job/${jobName}/run`, {
                 method: 'POST'
             })
@@ -103,8 +120,44 @@
             .then(data => {
                 if (data.success) {
                     updateJobStatus(jobName);
+                    // Start polling more frequently when job starts
+                    pollJob(jobName);
                 }
             });
+        }
+
+        // Polling function for active jobs
+        function pollJob(jobName) {
+            let attempts = 0;
+            const maxAttempts = 30; // Stop after 30 attempts (5 minutes)
+            const interval = 10000; // Poll every 10 seconds
+            
+            function check() {
+                fetch(`/api/job/${jobName}/status`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateJobDisplay(jobName, data);
+                        
+                        if (data.status === 'running' && attempts < maxAttempts) {
+                            attempts++;
+                            setTimeout(check, interval);
+                        }
+                    });
+            }
+            
+            check();
+        }
+
+        function updateJobDisplay(jobName, data) {
+            const jobBox = document.getElementById(`job-${jobName}`);
+            jobBox.className = `job-box status-${data.status}`;
+            jobBox.querySelector('.job-status').textContent = data.status;
+            
+            if (data.output) {
+                const terminal = document.getElementById('terminal');
+                terminal.textContent = data.output;
+                terminal.scrollTop = terminal.scrollHeight;
+            }
         }
 
         function updateJobStatus(jobName) {
@@ -139,14 +192,18 @@
                 });
         }
 
-        // Poll for status updates and logs every 5 seconds
+        // Poll for updates less frequently (every 30 seconds)
         setInterval(() => {
             document.querySelectorAll('.job-box').forEach(box => {
                 const jobName = box.id.replace('job-', '');
-                updateJobStatus(jobName);
+                fetch(`/api/job/${jobName}/status`)
+                    .then(response => response.json())
+                    .then(data => updateJobDisplay(jobName, data));
             });
-            updateTerminal();
-        }, 5000);
+        }, 30000);
+
+        // Update terminal logs every minute
+        setInterval(updateTerminal, 60000);
     </script>
 </body>
 </html>
