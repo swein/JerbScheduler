@@ -113,6 +113,9 @@
 
         function runJob(jobName) {
             closeAllDropdowns();
+            const terminal = document.getElementById('terminal');
+            terminal.textContent = `Starting job ${jobName}...`;
+            
             fetch(`/api/job/${jobName}/run`, {
                 method: 'POST'
             })
@@ -122,6 +125,8 @@
                     updateJobStatus(jobName);
                     // Start polling more frequently when job starts
                     pollJob(jobName);
+                } else {
+                    terminal.textContent = `Failed to start job ${jobName}: ${data.error || 'Unknown error'}`;
                 }
             });
         }
@@ -137,6 +142,13 @@
                     .then(response => response.json())
                     .then(data => {
                         updateJobDisplay(jobName, data);
+                        
+                        // Always update terminal if there's output
+                        if (data.output) {
+                            const terminal = document.getElementById('terminal');
+                            terminal.textContent = data.output;
+                            terminal.scrollTop = terminal.scrollHeight;
+                        }
                         
                         if (data.status === 'running' && attempts < maxAttempts) {
                             attempts++;
