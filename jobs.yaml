@@ -1,15 +1,5 @@
 jobs:
   - name: backup_data
-    command: "tar -czf /backup/data.tar.gz /data"
+    command: "tar -czf ~/homedata.tar.gz ~/"
     schedule: "0 1 * * *"
     dependencies: []
-    
-  - name: process_logs
-    command: "/scripts/process_logs.sh"
-    schedule: "30 1 * * *"
-    dependencies: ["backup_data"]
-    
-  - name: generate_report
-    command: "/scripts/generate_report.py"
-    schedule: "0 2 * * *"
-    dependencies: ["process_logs"]
