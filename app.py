@@ -130,4 +130,10 @@ def get_logs():
         return jsonify({'logs': 'No logs available'})
 
 if __name__ == '__main__':
+    # Clean up old log files
+    if os.path.exists('/tmp/jerb_scheduler.log'):
+        os.remove('/tmp/jerb_scheduler.log')
+    if os.path.exists('/tmp/jerb_scheduler_status.json'):
+        os.remove('/tmp/jerb_scheduler_status.json')
+    
     app.run(debug=True)

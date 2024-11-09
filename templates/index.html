@@ -134,8 +134,8 @@
         // Polling function for active jobs
         function pollJob(jobName) {
             let attempts = 0;
-            const maxAttempts = 30; // Stop after 30 attempts (5 minutes)
-            const interval = 10000; // Poll every 10 seconds
+            const maxAttempts = 60; // Stop after 60 attempts (2 minutes)
+            const interval = 2000; // Poll every 2 seconds
             
             function check() {
                 fetch(`/api/job/${jobName}/status`)
@@ -189,7 +189,7 @@
 
                 // If job is running, poll more frequently
                 if (data.status === 'running') {
-                    setTimeout(() => updateJobStatus(jobName), 1000);
+                    setTimeout(() => updateJobStatus(jobName), 500);
                 }
             });
         }
@@ -204,7 +204,7 @@
                 });
         }
 
-        // Poll for updates less frequently (every 30 seconds)
+        // Poll for updates every 5 seconds
         setInterval(() => {
             document.querySelectorAll('.job-box').forEach(box => {
                 const jobName = box.id.replace('job-', '');
@@ -212,7 +212,7 @@
                     .then(response => response.json())
                     .then(data => updateJobDisplay(jobName, data));
             });
-        }, 30000);
+        }, 5000);
 
         // Update terminal logs every minute
         setInterval(updateTerminal, 60000);
